@@ -1,0 +1,39 @@
+Solar System Three.js Simulator - Credits
+========================================
+
+Developed by: Rohan Abhilash
+Framework: Three.js
+Build Tool: Vite
+Language: TypeScript
+
+Libraries and Dependencies:
+- Three.js - 3D graphics library
+- lil-gui - GUI controls library  
+- Vite - Build tool and development server
+- TypeScript - Type-safe JavaScript
+
+Assets:
+- Planet textures: NASA/JPL public domain images
+- HDR environment maps: Open source HDR images
+- Space skybox: Public domain space imagery
+
+Special Thanks:
+- NASA for planetary data and imagery
+- Three.js community for examples and documentation
+- Open source contributors
+
+Features:
+- Realistic planetary orbits and rotations
+- Flyable spaceship with WASD controls
+- HDR environment lighting
+- Post-processing effects (Bloom, FXAA)
+- Interactive GUI controls
+- Planet and object labels
+- Quality preset options
+- Time scaling controls
+
+This project is for educational and demonstration purposes.
+All astronomical data is approximate and simplified for visualization.
+
+License: MIT
+Year: 2025

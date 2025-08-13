@@ -1,0 +1,2 @@
+# This file ensures the textures directory is included in version control
+# even when empty. It can be removed when texture files are added.
