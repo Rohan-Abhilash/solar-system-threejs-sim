@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Solar System Simulator</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: 'Arial', sans-serif;
+        background: #000;
+        color: #fff;
+        overflow: hidden;
+        user-select: none;
+      }
+      
+      #app {
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+      }
+      
+      #loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 2rem;
+        border-radius: 10px;
+        border: 1px solid #333;
+      }
+      
+      #loading h2 {
+        margin-bottom: 1rem;
+        color: #fff;
+      }
+      
+      #progressBar {
+        width: 300px;
+        height: 20px;
+        background: #333;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 1rem 0;
+      }
+      
+      #progressFill {
+        height: 100%;
+        background: linear-gradient(45deg, #ffd700, #ff8c00);
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+      
+      #progressText {
+        font-size: 0.9rem;
+        opacity: 0.8;
+      }
+      
+      .hidden {
+        display: none !important;
+      }
+      
+      canvas {
+        display: block;
+        cursor: grab;
+      }
+      
+      canvas:active {
+        cursor: grabbing;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="loading">
+        <h2>Loading Solar System...</h2>
+        <div id="progressBar">
+          <div id="progressFill"></div>
+        </div>
+        <div id="progressText">Initializing...</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
