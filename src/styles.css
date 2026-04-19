@@ -8,10 +8,11 @@
 
 body {
   font-family: 'Arial', sans-serif;
-  background: #000;
+  background: radial-gradient(circle at 30% 20%, #0b1a2d 0%, #050915 40%, #01030a 80%);
   color: #fff;
   overflow: hidden;
   height: 100vh;
+  letter-spacing: 0.01em;
 }
 
 #app {
@@ -24,6 +25,40 @@ body {
 canvas {
   display: block;
   outline: none;
+}
+
+.hud-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(4, 7, 17, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px 16px;
+  min-width: 240px;
+  z-index: 150;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+}
+
+.hud-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  color: #e6eefc;
+  margin-bottom: 8px;
+}
+
+.hud-row span:last-child {
+  color: #8fd3ff;
+}
+
+.hud-help {
+  font-size: 12px;
+  color: #c6d8ff;
+  opacity: 0.85;
+  line-height: 1.4;
 }
 
 /* Loading Screen */

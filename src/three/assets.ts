@@ -1,6 +1,13 @@
 import * as THREE from 'three';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 
+export interface SceneAssets {
+  environmentHDR: THREE.DataTexture | null;
+  planetTextures: Partial<Record<string, THREE.Texture>>;
+  ringTexture: THREE.Texture;
+  starTexture: THREE.Texture;
+}
+
 // Asset manager for loading textures, models, and HDR environments
 export class AssetManager {
   private textureLoader: THREE.TextureLoader;
@@ -220,3 +227,35 @@ export class AssetManager {
 
 // Global asset manager instance
 export const assetManager = new AssetManager();
+
+// Preload key assets for the scene
+export async function loadSceneAssets(): Promise<SceneAssets> {
+  const textureKeys = Object.keys(AssetManager.REMOTE_TEXTURES) as Array<
+    keyof typeof AssetManager.REMOTE_TEXTURES
+  >;
+
+  const planetTextures: Partial<Record<string, THREE.Texture>> = {};
+
+  const texturePromises = textureKeys.map(async (key) => {
+    const texture = await assetManager.loadPlanetTexture(key);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 8;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.needsUpdate = true;
+    planetTextures[key] = texture;
+  });
+
+  const environmentHDR = await assetManager.loadSpaceHDR().catch(() => null);
+  const ringTexture = assetManager.createRingTexture(0.32, 1.25);
+  const starTexture = assetManager.createStarTexture();
+
+  await Promise.all(texturePromises);
+
+  return {
+    environmentHDR,
+    planetTextures,
+    ringTexture,
+    starTexture
+  };
+}

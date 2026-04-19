@@ -6,114 +6,138 @@ export class SpaceshipControls {
   private scene: THREE.Scene;
   private velocity: THREE.Vector3 = new THREE.Vector3();
   private acceleration: THREE.Vector3 = new THREE.Vector3();
-  private keys: { [key: string]: boolean } = {};
+  private keys: Record<string, boolean> = {};
   private mouse: { x: number; y: number } = { x: 0, y: 0 };
   private euler: THREE.Euler = new THREE.Euler(0, 0, 0, 'YXZ');
   private PI_2 = Math.PI / 2;
   private isPointerLocked = false;
   private followCamera: THREE.Object3D;
+  private engineGlow: THREE.Mesh | null = null;
 
-  // Physics constants
-  private readonly maxSpeed = 0.5;
-  private readonly acceleration_factor = 0.01;
-  private readonly friction = 0.95;
-  private readonly rotationSpeed = 0.002;
-  private readonly boostMultiplier = 3;
+  private readonly maxSpeed = 320;
+  private readonly accelerationFactor = 140;
+  private readonly friction = 0.88;
+  private readonly rotationSpeed = 0.0022;
+  private readonly boostMultiplier = 2.5;
+  private readonly followOffset = new THREE.Vector3(0, 1.5, -6);
+  private readonly cameraLerp = 0.12;
+
+  private readonly onKeyDown = (event: KeyboardEvent) => {
+    this.keys[event.code] = true;
+    if (event.code === 'KeyC') {
+      this.requestPointerLock();
+    }
+  };
+
+  private readonly onKeyUp = (event: KeyboardEvent) => {
+    this.keys[event.code] = false;
+  };
+
+  private readonly onMouseMove = (event: MouseEvent) => {
+    if (this.isPointerLocked) {
+      this.mouse.x += event.movementX;
+      this.mouse.y += event.movementY;
+    }
+  };
+
+  private readonly onPointerLockChange = () => {
+    this.isPointerLocked = document.pointerLockElement !== null;
+  };
+
+  private readonly onClick = () => {
+    if (!this.isPointerLocked) {
+      this.requestPointerLock();
+    }
+  };
 
   constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
     this.scene = scene;
     this.camera = camera;
-    
-    // Create spaceship geometry
     this.createSpaceship();
-    
-    // Setup follow camera
     this.setupFollowCamera();
-    
-    // Setup event listeners
     this.setupEventListeners();
   }
 
   private createSpaceship() {
-    // Create a simple spaceship model
     const group = new THREE.Group();
-    
-    // Main body (fuselage)
-    const bodyGeometry = new THREE.ConeGeometry(0.1, 0.5, 8);
-    const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.rotation.x = Math.PI / 2;
-    group.add(body);
-    
-    // Wings
-    const wingGeometry = new THREE.BoxGeometry(0.3, 0.02, 0.1);
-    const wingMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
-    const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    leftWing.position.set(-0.15, 0, -0.1);
-    group.add(leftWing);
-    
-    const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    rightWing.position.set(0.15, 0, -0.1);
-    group.add(rightWing);
-    
-    // Engine glow effect
-    const glowGeometry = new THREE.SphereGeometry(0.05, 8, 8);
-    const glowMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0x00ffff, 
-      transparent: true, 
-      opacity: 0.7 
+
+    const hullMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x9fb6ff,
+      metalness: 0.75,
+      roughness: 0.25,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.2,
+      envMapIntensity: 1.5
     });
-    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.set(0, 0, -0.3);
-    group.add(glow);
-    
-    // Position spaceship
-    group.position.set(0, 0, 5);
-    
+
+    const accentMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x1f6feb,
+      metalness: 0.9,
+      roughness: 0.1,
+      envMapIntensity: 1.2
+    });
+
+    const bodyGeometry = new THREE.CylinderGeometry(0.15, 0.35, 1.4, 12, 1, true);
+    const body = new THREE.Mesh(bodyGeometry, hullMaterial);
+    body.rotation.z = Math.PI / 2;
+    group.add(body);
+
+    const noseGeometry = new THREE.ConeGeometry(0.2, 0.6, 12);
+    const nose = new THREE.Mesh(noseGeometry, accentMaterial);
+    nose.position.set(0.8, 0, 0);
+    nose.rotation.z = Math.PI / 2;
+    group.add(nose);
+
+    const finGeometry = new THREE.BoxGeometry(0.05, 0.8, 0.3);
+    const leftFin = new THREE.Mesh(finGeometry, hullMaterial);
+    leftFin.position.set(-0.25, 0, 0.3);
+    group.add(leftFin);
+
+    const rightFin = leftFin.clone();
+    rightFin.position.z = -0.3;
+    group.add(rightFin);
+
+    const cockpitGeometry = new THREE.SphereGeometry(0.18, 18, 18);
+    const cockpitMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x88c9ff,
+      metalness: 0.4,
+      roughness: 0.05,
+      transmission: 0.35,
+      thickness: 0.4,
+      envMapIntensity: 1.4
+    });
+    const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
+    cockpit.position.set(0.2, 0, 0);
+    group.add(cockpit);
+
+    const glowGeometry = new THREE.SphereGeometry(0.18, 12, 12);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x7fffff,
+      transparent: true,
+      opacity: 0.65
+    });
+    this.engineGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+    this.engineGlow.position.set(-0.9, 0, 0);
+    group.add(this.engineGlow);
+
+    group.position.set(0, 6, 170);
+    group.lookAt(0, 0, 0);
     this.spaceship = group;
     this.scene.add(this.spaceship);
   }
 
   private setupFollowCamera() {
-    // Create a camera follow target
     this.followCamera = new THREE.Object3D();
-    this.followCamera.position.set(0, 1, -3);
+    this.followCamera.position.copy(this.followOffset);
     this.spaceship.add(this.followCamera);
   }
 
   private setupEventListeners() {
-    // Keyboard events
-    document.addEventListener('keydown', (event) => {
-      this.keys[event.code] = true;
-      if (event.code === 'KeyC') {
-        this.requestPointerLock();
-      }
-    });
-
-    document.addEventListener('keyup', (event) => {
-      this.keys[event.code] = false;
-    });
-
-    // Mouse events for look around
-    document.addEventListener('mousemove', (event) => {
-      if (this.isPointerLocked) {
-        this.mouse.x += event.movementX * this.rotationSpeed;
-        this.mouse.y += event.movementY * this.rotationSpeed;
-        this.mouse.y = Math.max(-this.PI_2, Math.min(this.PI_2, this.mouse.y));
-      }
-    });
-
-    // Pointer lock events
-    document.addEventListener('pointerlockchange', () => {
-      this.isPointerLocked = document.pointerLockElement !== null;
-    });
-
-    // Click to enable pointer lock
-    document.addEventListener('click', () => {
-      if (!this.isPointerLocked) {
-        this.requestPointerLock();
-      }
-    });
+    document.addEventListener('keydown', this.onKeyDown);
+    document.addEventListener('keyup', this.onKeyUp);
+    document.addEventListener('mousemove', this.onMouseMove);
+    document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    document.addEventListener('click', this.onClick);
   }
 
   private requestPointerLock() {
@@ -121,74 +145,62 @@ export class SpaceshipControls {
   }
 
   public update(deltaTime: number) {
-    // Reset acceleration
+    const dt = Math.min(deltaTime, 0.05);
+
     this.acceleration.set(0, 0, 0);
 
-    // Handle input
     const isBoost = this.keys['ShiftLeft'] || this.keys['ShiftRight'];
     const speedMultiplier = isBoost ? this.boostMultiplier : 1;
+    const accelStrength = this.accelerationFactor * speedMultiplier;
 
-    // Forward/backward (W/S)
-    if (this.keys['KeyW']) {
-      this.acceleration.z += this.acceleration_factor * speedMultiplier;
-    }
-    if (this.keys['KeyS']) {
-      this.acceleration.z -= this.acceleration_factor * speedMultiplier;
-    }
+    if (this.keys['KeyW']) this.acceleration.z += accelStrength;
+    if (this.keys['KeyS']) this.acceleration.z -= accelStrength;
+    if (this.keys['KeyA']) this.acceleration.x += accelStrength;
+    if (this.keys['KeyD']) this.acceleration.x -= accelStrength;
+    if (this.keys['Space']) this.acceleration.y += accelStrength;
+    if (this.keys['KeyQ']) this.acceleration.y -= accelStrength;
 
-    // Strafe left/right (A/D)
-    if (this.keys['KeyA']) {
-      this.acceleration.x += this.acceleration_factor * speedMultiplier;
-    }
-    if (this.keys['KeyD']) {
-      this.acceleration.x -= this.acceleration_factor * speedMultiplier;
-    }
-
-    // Up/down (Space/Q)
-    if (this.keys['Space']) {
-      this.acceleration.y += this.acceleration_factor * speedMultiplier;
-    }
-    if (this.keys['KeyQ']) {
-      this.acceleration.y -= this.acceleration_factor * speedMultiplier;
-    }
-
-    // Apply acceleration relative to spaceship orientation
     this.acceleration.applyQuaternion(this.spaceship.quaternion);
 
-    // Update velocity
-    this.velocity.add(this.acceleration);
-    this.velocity.multiplyScalar(this.friction);
+    const damping = Math.pow(this.friction, dt * 60);
+    this.velocity.addScaledVector(this.acceleration, dt);
+    this.velocity.multiplyScalar(damping);
 
-    // Clamp velocity to max speed
-    if (this.velocity.length() > this.maxSpeed) {
-      this.velocity.normalize().multiplyScalar(this.maxSpeed);
+    const maxSpeed = this.maxSpeed * speedMultiplier;
+    if (this.velocity.length() > maxSpeed) {
+      this.velocity.normalize().multiplyScalar(maxSpeed);
     }
 
-    // Update spaceship position
-    this.spaceship.position.add(this.velocity);
+    this.spaceship.position.addScaledVector(this.velocity, dt);
 
-    // Handle mouse look (rotation)
     if (this.isPointerLocked) {
       this.euler.setFromQuaternion(this.spaceship.quaternion);
-      this.euler.y = this.mouse.x;
-      this.euler.x = this.mouse.y;
+      this.euler.y += this.mouse.x * this.rotationSpeed;
+      this.euler.x += this.mouse.y * this.rotationSpeed;
+      this.euler.x = Math.max(-this.PI_2 + 0.05, Math.min(this.PI_2 - 0.05, this.euler.x));
       this.spaceship.quaternion.setFromEuler(this.euler);
+      this.mouse.x = 0;
+      this.mouse.y = 0;
     }
 
-    // Update camera to follow spaceship
-    this.updateFollowCamera();
+    this.updateFollowCamera(dt);
+    this.updateEngineGlow(maxSpeed);
   }
 
-  private updateFollowCamera() {
-    // Get world position of follow camera target
+  private updateFollowCamera(deltaTime: number) {
     const worldPosition = new THREE.Vector3();
     this.followCamera.getWorldPosition(worldPosition);
-    
-    // Smoothly move camera towards target
-    this.camera.position.lerp(worldPosition, 0.1);
-    
-    // Make camera look at spaceship
+    this.camera.position.lerp(worldPosition, this.cameraLerp);
     this.camera.lookAt(this.spaceship.position);
+  }
+
+  private updateEngineGlow(maxSpeed: number) {
+    if (!this.engineGlow) return;
+    const speedRatio = THREE.MathUtils.clamp(this.velocity.length() / maxSpeed, 0, 1);
+    const material = this.engineGlow.material as THREE.MeshBasicMaterial;
+    material.opacity = 0.45 + speedRatio * 0.4;
+    material.color.setHSL(0.55, 1, 0.6 + speedRatio * 0.2);
+    this.engineGlow.scale.setScalar(1 + speedRatio * 0.6);
   }
 
   public getSpaceship(): THREE.Object3D {
@@ -203,30 +215,34 @@ export class SpaceshipControls {
     return this.velocity.clone();
   }
 
+  public getSpeed(): number {
+    return this.velocity.length();
+  }
+
   public isMoving(): boolean {
     return this.velocity.length() > 0.001;
   }
 
+  public pointerLocked(): boolean {
+    return this.isPointerLocked;
+  }
+
   public getControlsInfo(): string {
     return `
-      SPACESHIP CONTROLS:
-      W/A/S/D - Move Forward/Left/Backward/Right
-      Space/Q - Move Up/Down
+      W/A/S/D - Thrust forward/strafe
+      Space / Q - Up / Down
       Shift - Boost
-      Mouse - Look around (click to enable)
-      C - Enable mouse look
+      Click or C - Lock cursor and fly first-person
     `;
   }
 
   public dispose() {
-    // Clean up event listeners
-    document.removeEventListener('keydown', this.setupEventListeners);
-    document.removeEventListener('keyup', this.setupEventListeners);
-    document.removeEventListener('mousemove', this.setupEventListeners);
-    document.removeEventListener('pointerlockchange', this.setupEventListeners);
-    document.removeEventListener('click', this.setupEventListeners);
-    
-    // Remove spaceship from scene
+    document.removeEventListener('keydown', this.onKeyDown);
+    document.removeEventListener('keyup', this.onKeyUp);
+    document.removeEventListener('mousemove', this.onMouseMove);
+    document.removeEventListener('pointerlockchange', this.onPointerLockChange);
+    document.removeEventListener('click', this.onClick);
+
     if (this.spaceship && this.scene) {
       this.scene.remove(this.spaceship);
     }

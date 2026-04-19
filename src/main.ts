@@ -1,60 +1,90 @@
 import './styles.css';
 import { SolarSystemScene } from './three/scene';
-import { setupControls } from './three/controls';
-import { setupPostprocessing } from './three/postprocessing';
+import { SpaceshipControls } from './three/spaceship';
 
-// Initialize the solar system simulation
 class SolarSystemApp {
   private scene: SolarSystemScene;
+  private spaceship: SpaceshipControls;
   private animationId: number = 0;
+  private hudSpeed?: HTMLElement | null;
+  private hudMode?: HTMLElement | null;
+  private loadingEl?: HTMLElement | null;
 
   constructor() {
     this.scene = new SolarSystemScene();
-    this.init();
-  }
-
-  private init(): void {
-    // Setup controls
-    setupControls(this.scene.camera, this.scene.renderer.domElement);
-    
-    // Setup postprocessing
-    setupPostprocessing(this.scene.scene, this.scene.camera, this.scene.renderer);
-    
-    // Start the animation loop
+    this.spaceship = new SpaceshipControls(this.scene.scene, this.scene.camera);
+    this.loadingEl = document.getElementById('loading');
+    this.buildHUD();
     this.animate();
-    
-    // Handle window resize
-    window.addEventListener('resize', this.onWindowResize.bind(this));
+    this.scene.whenReady().then(() => this.hideLoading());
+    window.addEventListener('resize', this.onWindowResize);
   }
 
-  private animate(): void {
-    this.animationId = requestAnimationFrame(() => this.animate());
-    this.scene.update();
-    this.scene.render();
+  private buildHUD(): void {
+    const hud = document.createElement('div');
+    hud.className = 'hud-panel';
+    hud.innerHTML = `
+      <div class="hud-row">
+        <span>Speed</span>
+        <span id="hud-speed">0.0 u/s</span>
+      </div>
+      <div class="hud-row">
+        <span>Flight</span>
+        <span id="hud-mode">Click to lock cursor</span>
+      </div>
+      <div class="hud-help">
+        W/A/S/D steer · Space/Q ascend/descend · Shift boost · Click or C to fly
+      </div>
+    `;
+    document.body.appendChild(hud);
+    this.hudSpeed = hud.querySelector('#hud-speed');
+    this.hudMode = hud.querySelector('#hud-mode');
   }
 
-  private onWindowResize(): void {
+  private hideLoading(): void {
+    if (this.loadingEl) {
+      this.loadingEl.classList.add('hidden');
+    }
+  }
+
+  private animate = (): void => {
+    this.animationId = requestAnimationFrame(this.animate);
+    const delta = this.scene.update();
+    this.spaceship.update(delta);
+    this.scene.render(delta);
+    this.updateHUD();
+  };
+
+  private updateHUD(): void {
+    if (this.hudSpeed) {
+      const speed = this.spaceship.getSpeed();
+      this.hudSpeed.textContent = `${speed.toFixed(1)} u/s`;
+    }
+    if (this.hudMode) {
+      this.hudMode.textContent = this.spaceship.pointerLocked()
+        ? 'In-flight (cursor locked)'
+        : 'Explorer mode (click to fly)';
+    }
+  }
+
+  private onWindowResize = (): void => {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    
-    this.scene.camera.aspect = width / height;
-    this.scene.camera.updateProjectionMatrix();
-    this.scene.renderer.setSize(width, height);
-  }
+    this.scene.resize(width, height);
+  };
 
   public dispose(): void {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
     }
-    window.removeEventListener('resize', this.onWindowResize.bind(this));
+    window.removeEventListener('resize', this.onWindowResize);
+    this.spaceship.dispose();
     this.scene.dispose();
   }
 }
 
-// Initialize the application when DOM is loaded
 const app = new SolarSystemApp();
 
-// Cleanup on page unload
 window.addEventListener('beforeunload', () => {
   app.dispose();
 });
