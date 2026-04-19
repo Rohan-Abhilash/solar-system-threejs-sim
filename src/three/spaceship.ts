@@ -182,7 +182,6 @@ export class SpaceshipControls {
   }
 
   private updateFollowCamera() {
-    // Camera inherits position and rotation directly from cockpit mount.
   }
 
   public getSpaceship(): THREE.Object3D {

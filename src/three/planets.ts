@@ -227,6 +227,10 @@ export class Moon {
 }
 
 export class PlanetSystem {
+  private static readonly ASTEROID_BELT_INNER_RADIUS = 65;
+  private static readonly ASTEROID_BELT_WIDTH = 15;
+  private static readonly OORT_CLOUD_INNER_RADIUS = 800;
+  private static readonly OORT_CLOUD_THICKNESS = 500;
   private planets: Planet[] = [];
   private asteroidBelt: THREE.Points | null = null;
   private oortCloud: THREE.Points | null = null;
@@ -393,7 +397,9 @@ export class PlanetSystem {
     const colors = new Float32Array(asteroidCount * 3);
 
     for (let i = 0; i < asteroidCount; i++) {
-      const radius = 65 + Math.random() * 15;
+      const radius =
+        PlanetSystem.ASTEROID_BELT_INNER_RADIUS +
+        Math.random() * PlanetSystem.ASTEROID_BELT_WIDTH;
       const angle = Math.random() * Math.PI * 2;
       const y = (Math.random() - 0.5) * 5;
       const spread = (Math.random() - 0.5) * 1.8;
@@ -428,7 +434,9 @@ export class PlanetSystem {
     const positions = new Float32Array(cometCount * 3);
 
     for (let i = 0; i < cometCount; i++) {
-      const radius = 800 + Math.random() * 500;
+      const radius =
+        PlanetSystem.OORT_CLOUD_INNER_RADIUS +
+        Math.random() * PlanetSystem.OORT_CLOUD_THICKNESS;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
 
