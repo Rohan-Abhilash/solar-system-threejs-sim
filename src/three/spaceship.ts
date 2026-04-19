@@ -29,7 +29,7 @@ export class SpaceshipControls {
     }
   };
   private readonly onPointerLockChange = () => {
-    this.isPointerLocked = document.pointerLockElement === this.rendererTarget;
+    this.isPointerLocked = document.pointerLockElement !== null;
   };
   private readonly onClick = () => {
     if (!this.isPointerLocked) {
