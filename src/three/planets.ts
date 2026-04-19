@@ -24,6 +24,8 @@ export class Planet {
   public mesh: THREE.Mesh;
   public orbitLine: THREE.Line;
   public moons: Moon[] = [];
+  private material: THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial;
+  private rings?: THREE.Mesh;
   private orbitSpeed: number;
   private rotationSpeed: number;
   private angle: number = 0;
@@ -40,23 +42,32 @@ export class Planet {
   }
 
   private createPlanet(): void {
-    const geometry = new THREE.SphereGeometry(this.data.radius, 32, 32);
+    const geometry = new THREE.SphereGeometry(this.data.radius, 64, 64);
     
-    // Create material with proper texture or color
-    const material = new THREE.MeshPhongMaterial({
-      color: this.data.color,
-      shininess: 10,
-      transparent: this.data.name === 'Sun',
-      opacity: this.data.name === 'Sun' ? 0.9 : 1.0
-    });
-
-    // Add emissive properties for the sun
     if (this.data.name === 'Sun') {
-      material.emissive = new THREE.Color(this.data.color);
-      material.emissiveIntensity = 0.3;
+      this.material = new THREE.MeshPhysicalMaterial({
+        color: this.data.color,
+        emissive: new THREE.Color(this.data.color),
+        emissiveIntensity: 1.6,
+        transmission: 0.1,
+        roughness: 0.2,
+        metalness: 0.2,
+        transparent: true,
+        opacity: 0.95
+      });
+    } else {
+      this.material = new THREE.MeshPhysicalMaterial({
+        color: this.data.color,
+        roughness: 0.55,
+        metalness: 0.08,
+        clearcoat: 0.35,
+        clearcoatRoughness: 0.65,
+        sheen: 0.15,
+        sheenRoughness: 0.75
+      });
     }
 
-    this.mesh = new THREE.Mesh(geometry, material);
+    this.mesh = new THREE.Mesh(geometry, this.material);
     this.mesh.position.set(this.data.distance, 0, 0);
     this.mesh.castShadow = this.data.name !== 'Sun';
     this.mesh.receiveShadow = this.data.name !== 'Sun';
@@ -77,16 +88,16 @@ export class Planet {
       64
     );
     
-    const ringMaterial = new THREE.MeshBasicMaterial({
+    const ringMaterial = new THREE.MeshStandardMaterial({
       color: 0xaaaaaa,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.6
     });
     
-    const rings = new THREE.Mesh(ringGeometry, ringMaterial);
-    rings.rotation.x = Math.PI / 2;
-    this.mesh.add(rings);
+    this.rings = new THREE.Mesh(ringGeometry, ringMaterial);
+    this.rings.rotation.x = Math.PI / 2;
+    this.mesh.add(this.rings);
   }
 
   private createOrbitLine(): void {
@@ -122,6 +133,31 @@ export class Planet {
     });
   }
 
+  public applyAppearance(options: {
+    texture?: THREE.Texture;
+    envMap?: THREE.Texture | null;
+    ringTexture?: THREE.Texture;
+  }): void {
+    if (options.texture) {
+      this.material.map = options.texture;
+      this.material.needsUpdate = true;
+    }
+
+    if (options.envMap) {
+      this.material.envMap = options.envMap;
+      this.material.envMapIntensity = this.data.name === 'Sun' ? 0 : 1.2;
+      this.material.needsUpdate = true;
+    }
+
+    if (this.rings && options.ringTexture) {
+      const ringMaterial = this.rings.material as THREE.MeshStandardMaterial;
+      ringMaterial.map = options.ringTexture;
+      ringMaterial.transparent = true;
+      ringMaterial.opacity = 0.9;
+      ringMaterial.needsUpdate = true;
+    }
+  }
+
   public update(deltaTime: number): void {
     if (this.data.name === 'Sun') {
       // Sun only rotates
@@ -150,6 +186,13 @@ export class Planet {
     this.scene.remove(this.mesh);
     if (this.orbitLine) {
       this.scene.remove(this.orbitLine);
+    }
+    if (this.rings) {
+      this.mesh.remove(this.rings);
+      this.rings.geometry.dispose();
+      if (this.rings.material instanceof THREE.Material) {
+        this.rings.material.dispose();
+      }
     }
     
     this.moons.forEach(moon => moon.dispose());
@@ -310,6 +353,22 @@ export class PlanetSystem {
     const timeMultiplier = 10;
     this.planets.forEach(planet => {
       planet.update(deltaTime * timeMultiplier);
+    });
+  }
+
+  public applyAssets(
+    envMap: THREE.Texture | null,
+    textures: Partial<Record<string, THREE.Texture>>,
+    ringTexture?: THREE.Texture
+  ): void {
+    this.planets.forEach((planet) => {
+      const key = planet.data.name.toLowerCase();
+      const texture = textures[key];
+      planet.applyAppearance({
+        texture,
+        envMap,
+        ringTexture: planet.data.hasRings ? ringTexture : undefined
+      });
     });
   }
 
