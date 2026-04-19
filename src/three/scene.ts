@@ -132,7 +132,7 @@ export class SolarSystemScene {
   }
 
   private initSpaceship(): void {
-    this.spaceshipControls = new SpaceshipControls(this.scene, this.camera);
+    this.spaceshipControls = new SpaceshipControls(this.scene, this.camera, this.renderer.domElement);
   }
 
   private initPostprocessing(): void {

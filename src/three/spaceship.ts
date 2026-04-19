@@ -45,10 +45,10 @@ export class SpaceshipControls {
   private readonly rotationSpeed = 0.002;
   private readonly boostMultiplier = 3;
 
-  constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
+  constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera, pointerLockTarget?: HTMLElement) {
     this.scene = scene;
     this.camera = camera;
-    this.rendererTarget = document.body;
+    this.rendererTarget = pointerLockTarget ?? document.body;
     
     // Create spaceship geometry
     this.createSpaceship();
