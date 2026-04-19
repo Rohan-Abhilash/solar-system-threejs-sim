@@ -41,11 +41,15 @@ export class Planet {
 
   private createPlanet(): void {
     const geometry = new THREE.SphereGeometry(this.data.radius, 32, 32);
-    
-    // Create material with proper texture or color
-    const material = new THREE.MeshPhongMaterial({
+    const profile = this.getMaterialProfile();
+    const material = new THREE.MeshPhysicalMaterial({
       color: this.data.color,
-      shininess: 10,
+      metalness: profile.metalness,
+      roughness: profile.roughness,
+      clearcoat: profile.clearcoat,
+      clearcoatRoughness: profile.clearcoatRoughness,
+      transmission: profile.transmission,
+      ior: profile.ior,
       transparent: this.data.name === 'Sun',
       opacity: this.data.name === 'Sun' ? 0.9 : 1.0
     });
@@ -67,6 +71,28 @@ export class Planet {
     // Add rings for Saturn
     if (this.data.hasRings) {
       this.addRings();
+    }
+  }
+
+  private getMaterialProfile(): {
+    metalness: number;
+    roughness: number;
+    clearcoat: number;
+    clearcoatRoughness: number;
+    transmission: number;
+    ior: number;
+  } {
+    switch (this.data.name) {
+      case 'Sun':
+        return { metalness: 0, roughness: 0.4, clearcoat: 0, clearcoatRoughness: 1, transmission: 0, ior: 1 };
+      case 'Earth':
+      case 'Neptune':
+      case 'Uranus':
+        return { metalness: 0.05, roughness: 0.2, clearcoat: 0.6, clearcoatRoughness: 0.2, transmission: 0.05, ior: 1.33 };
+      case 'Venus':
+        return { metalness: 0.03, roughness: 0.35, clearcoat: 0.3, clearcoatRoughness: 0.25, transmission: 0.02, ior: 1.3 };
+      default:
+        return { metalness: 0.08, roughness: 0.55, clearcoat: 0.15, clearcoatRoughness: 0.5, transmission: 0, ior: 1.2 };
     }
   }
 
@@ -202,6 +228,8 @@ export class Moon {
 
 export class PlanetSystem {
   private planets: Planet[] = [];
+  private asteroidBelt: THREE.Points | null = null;
+  private oortCloud: THREE.Points | null = null;
   private planetData: PlanetData[] = [
     {
       name: 'Sun',
@@ -296,6 +324,8 @@ export class PlanetSystem {
 
   constructor(private scene: THREE.Scene) {
     this.createPlanets();
+    this.createAsteroidBelt();
+    this.createOortCloud();
   }
 
   private createPlanets(): void {
@@ -311,6 +341,14 @@ export class PlanetSystem {
     this.planets.forEach(planet => {
       planet.update(deltaTime * timeMultiplier);
     });
+
+    if (this.asteroidBelt) {
+      this.asteroidBelt.rotation.y += deltaTime * 0.01;
+    }
+
+    if (this.oortCloud) {
+      this.oortCloud.rotation.y += deltaTime * 0.001;
+    }
   }
 
   public focusOnPlanet(planetName: string, camera: THREE.PerspectiveCamera): void {
@@ -326,6 +364,18 @@ export class PlanetSystem {
   public dispose(): void {
     this.planets.forEach(planet => planet.dispose());
     this.planets = [];
+    if (this.asteroidBelt) {
+      this.scene.remove(this.asteroidBelt);
+      this.asteroidBelt.geometry.dispose();
+      (this.asteroidBelt.material as THREE.Material).dispose();
+      this.asteroidBelt = null;
+    }
+    if (this.oortCloud) {
+      this.scene.remove(this.oortCloud);
+      this.oortCloud.geometry.dispose();
+      (this.oortCloud.material as THREE.Material).dispose();
+      this.oortCloud = null;
+    }
   }
 
   public getPlanetNames(): string[] {
@@ -334,5 +384,70 @@ export class PlanetSystem {
 
   public getPlanet(name: string): Planet | undefined {
     return this.planets.find(p => p.data.name === name);
+  }
+
+  private createAsteroidBelt(): void {
+    const asteroidCount = 3500;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(asteroidCount * 3);
+    const colors = new Float32Array(asteroidCount * 3);
+
+    for (let i = 0; i < asteroidCount; i++) {
+      const radius = 65 + Math.random() * 15;
+      const angle = Math.random() * Math.PI * 2;
+      const y = (Math.random() - 0.5) * 5;
+      const spread = (Math.random() - 0.5) * 1.8;
+
+      positions[i * 3] = Math.cos(angle) * (radius + spread);
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = Math.sin(angle) * (radius + spread);
+
+      const tint = 0.45 + Math.random() * 0.3;
+      colors[i * 3] = tint;
+      colors[i * 3 + 1] = tint * 0.9;
+      colors[i * 3 + 2] = tint * 0.8;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.45,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9
+    });
+
+    this.asteroidBelt = new THREE.Points(geometry, material);
+    this.scene.add(this.asteroidBelt);
+  }
+
+  private createOortCloud(): void {
+    const cometCount = 5000;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(cometCount * 3);
+
+    for (let i = 0; i < cometCount; i++) {
+      const radius = 800 + Math.random() * 500;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(Math.random() * 2 - 1);
+
+      positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = radius * Math.cos(phi);
+      positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const material = new THREE.PointsMaterial({
+      color: 0xb9d6ff,
+      size: 1.1,
+      transparent: true,
+      opacity: 0.2,
+      depthWrite: false
+    });
+
+    this.oortCloud = new THREE.Points(geometry, material);
+    this.scene.add(this.oortCloud);
   }
 }

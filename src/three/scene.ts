@@ -1,16 +1,20 @@
 import * as THREE from 'three';
 import { PlanetSystem } from './planets';
-import { loadAssets } from './assets';
+import { assetManager } from './assets';
+import { PostProcessingManager, detectOptimalQuality } from './postprocessing';
+import { SpaceshipControls } from './spaceship';
 
 export class SolarSystemScene {
   public scene: THREE.Scene;
   public camera: THREE.PerspectiveCamera;
   public renderer: THREE.WebGLRenderer;
   public planetSystem: PlanetSystem;
+  public spaceshipControls: SpaceshipControls;
   
   private clock: THREE.Clock;
   private lights: THREE.Light[] = [];
   private stars: THREE.Points | null = null;
+  private postprocessing: PostProcessingManager | null = null;
   private isAssetsLoaded: boolean = false;
 
   constructor() {
@@ -21,6 +25,8 @@ export class SolarSystemScene {
     this.initLights();
     this.initStars();
     this.initPlanets();
+    this.initSpaceship();
+    this.initPostprocessing();
     this.loadSceneAssets();
   }
 
@@ -50,8 +56,10 @@ export class SolarSystemScene {
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.physicallyCorrectLights = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.5;
+    this.renderer.toneMappingExposure = 0.85;
     
     // Append to body
     const app = document.getElementById('app') || document.body;
@@ -124,9 +132,30 @@ export class SolarSystemScene {
     this.planetSystem = new PlanetSystem(this.scene);
   }
 
+  private initSpaceship(): void {
+    this.spaceshipControls = new SpaceshipControls(this.scene, this.camera);
+  }
+
+  private initPostprocessing(): void {
+    this.postprocessing = new PostProcessingManager(
+      this.renderer,
+      this.scene,
+      this.camera,
+      detectOptimalQuality()
+    );
+  }
+
   private async loadSceneAssets(): void {
     try {
-      await loadAssets();
+      const hdr = await assetManager.loadSpaceHDR();
+      if (hdr) {
+        const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+        const envMap = pmremGenerator.fromEquirectangular(hdr).texture;
+        this.scene.environment = envMap;
+        this.scene.background = envMap;
+        pmremGenerator.dispose();
+        hdr.dispose();
+      }
       this.isAssetsLoaded = true;
       console.log('Scene assets loaded successfully');
     } catch (error) {
@@ -143,6 +172,7 @@ export class SolarSystemScene {
 
     // Update planet system
     this.planetSystem.update(deltaTime, elapsedTime);
+    this.spaceshipControls.update(deltaTime);
 
     // Rotate stars slowly
     if (this.stars) {
@@ -157,6 +187,10 @@ export class SolarSystemScene {
   }
 
   public render(): void {
+    if (this.postprocessing) {
+      this.postprocessing.render();
+      return;
+    }
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -164,11 +198,15 @@ export class SolarSystemScene {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
+    this.postprocessing?.onWindowResize(width, height);
   }
 
   public dispose(): void {
     // Cleanup resources
     this.planetSystem.dispose();
+    this.spaceshipControls.dispose();
+    this.postprocessing?.dispose();
+    assetManager.dispose();
     
     // Dispose geometries and materials
     this.scene.traverse((object) => {

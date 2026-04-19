@@ -1,7 +1,5 @@
 import './styles.css';
 import { SolarSystemScene } from './three/scene';
-import { setupControls } from './three/controls';
-import { setupPostprocessing } from './three/postprocessing';
 
 // Initialize the solar system simulation
 class SolarSystemApp {
@@ -14,17 +12,26 @@ class SolarSystemApp {
   }
 
   private init(): void {
-    // Setup controls
-    setupControls(this.scene.camera, this.scene.renderer.domElement);
-    
-    // Setup postprocessing
-    setupPostprocessing(this.scene.scene, this.scene.camera, this.scene.renderer);
-    
+    this.createHud();
     // Start the animation loop
     this.animate();
     
     // Handle window resize
     window.addEventListener('resize', this.onWindowResize.bind(this));
+  }
+
+  private createHud(): void {
+    const hud = document.createElement('div');
+    hud.className = 'flight-hud';
+    hud.innerHTML = `
+      <div class="flight-hud-title">Spacecraft Flight Controls</div>
+      <div>W/S: Forward/Reverse</div>
+      <div>A/D: Strafe Left/Right</div>
+      <div>Space/Q: Up/Down</div>
+      <div>Shift: Boost</div>
+      <div>Mouse + Click: Look Around</div>
+    `;
+    document.body.appendChild(hud);
   }
 
   private animate(): void {

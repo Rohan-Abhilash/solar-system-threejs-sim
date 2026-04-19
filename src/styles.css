@@ -208,3 +208,25 @@ canvas {
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
 }
+
+.flight-hud {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1500;
+  padding: 12px 14px;
+  background: rgba(3, 8, 22, 0.72);
+  border: 1px solid rgba(153, 193, 255, 0.45);
+  border-radius: 8px;
+  color: #dbe8ff;
+  font-size: 12px;
+  line-height: 1.35;
+  font-family: "Segoe UI", Arial, sans-serif;
+  backdrop-filter: blur(4px);
+}
+
+.flight-hud-title {
+  margin-bottom: 6px;
+  color: #ffffff;
+  font-weight: 700;
+}
